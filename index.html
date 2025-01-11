@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业微信群机器人消息发送</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fff;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+            border-radius: 15px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #34495e;
+            font-weight: 500;
+            font-size: 15px;
+        }
+
+        select, textarea, input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        select:focus, textarea:focus, input:focus {
+            outline: none;
+            border-color: #84fab0;
+            box-shadow: 0 0 0 3px rgba(132, 250, 176, 0.1);
+        }
+
+        .webhook-selector {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .webhook-selector select {
+            flex: 1;
+        }
+
+        .add-webhook-btn, .send-now, .schedule-send {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            background: linear-gradient(45deg, #84fab0, #8fd3f4);
+            color: white;
+        }
+
+        .add-webhook-btn:hover, .send-now:hover, .schedule-send:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(132, 250, 176, 0.4);
+        }
+
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .image-upload-area {
+            border: 2px dashed #e0e0e0;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .image-upload-area:hover {
+            border-color: #84fab0;
+            background: rgba(132, 250, 176, 0.05);
+        }
+
+        .preview-image {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-top: 15px;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-content h2 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }
+
+        .password-modal {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .password-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .password-content h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .loading {
+            position: relative;
+            opacity: 0.8;
+            cursor: wait;
+        }
+
+        .loading:after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin: -10px 0 0 -10px;
+            border: 2px solid #ffffff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: loading 0.8s linear infinite;
+        }
+
+        @keyframes loading {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+                margin: 10px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .webhook-selector {
+                flex-direction: column;
+            }
+
+            .add-webhook-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="passwordModal" class="password-modal">
+            <div class="password-content">
+                <h2>请输入访问密码</h2>
+                <input type="password" id="passwordInput" placeholder="请输入密码">
+                <button onclick="verifyPassword()">确认</button>
+            </div>
+        </div>
+
+        <div id="mainContent" style="display: none;">
+            <h1>企业微信群机器人消息发送</h1>
+            
+            <div class="form-group">
+                <label>选择机器人</label>
+                <div class="webhook-selector">
+                    <select id="webhookSelect" onchange="updateWebhook()">
+                        <option value="">请选择机器人...</option>
+                    </select>
+                    <button type="button" class="add-webhook-btn" onclick="showWebhookModal()">
+                        添加机器人
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>消息类型</label>
+                <select id="msgType" onchange="toggleMessageInput()">
+                    <option value="text">文本消息</option>
+                    <option value="markdown">Markdown消息</option>
+                    <option value="image">图片消息</option>
+                    <option value="news">图文消息</option>
+                </select>
+            </div>
+
+            <div class="form-group message-content">
+                <label>消息内容</label>
+                <textarea id="message" placeholder="请输入要发送的消息内容..."></textarea>
+                
+                <!-- 图片上传区域 -->
+                <div id="imageInput" style="display: none;" class="image-upload-area">
+                    <div class="upload-wrapper">
+                        <input type="file" id="imageFile" accept="image/jpeg,image/png" style="display: none;">
+                        <button type="button" class="upload-btn" onclick="document.getElementById('imageFile').click()">
+                            选择图片
+                        </button>
+                        <span id="fileName" class="file-name"></span>
+                    </div>
+                    
+                    <!-- 图片预览区域 -->
+                    <div id="previewArea" class="preview-area"></div>
+                    
+                    <!-- 图文消息的额外字段 -->
+                    <div id="imageUrlInput" style="display: none;" class="news-fields">
+                        <input type="text" id="imageUrl" placeholder="请输入点击图片跳转的URL地址" class="form-input">
+                        <input type="text" id="imageTitle" placeholder="请输入图文标题（选填）" class="form-input">
+                        <textarea id="imageDescription" placeholder="请输入图文描述（选填）" class="form-input"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="radio-group">
+                <label class="radio-option">
+                    <input type="radio" name="sendType" value="now" checked onclick="toggleScheduleTime()">
+                    立即发送
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="sendType" value="schedule" onclick="toggleScheduleTime()">
+                    定时发送
+                </label>
+            </div>
+
+            <div class="form-group" id="scheduleTimeGroup" style="display: none;">
+                <label>定时发送时间</label>
+                <input type="datetime-local" id="scheduleTime">
+            </div>
+
+            <div class="button-group">
+                <button class="send-now" onclick="sendNow()">立即发送</button>
+                <button class="schedule-send" onclick="scheduleMessage()">设置定时发送</button>
+            </div>
+            
+            <div id="status" class="status"></div>
+        </div>
+    </div>
+
+    <div id="webhookModal" class="modal">
+        <div class="modal-content">
+            <h2>添加新机器人</h2>
+            <div class="form-group">
+                <input type="text" id="webhookName" placeholder="机器人名称" class="form-input">
+                <input type="text" id="webhookUrl" placeholder="Webhook 地址" class="form-input">
+                <div class="button-group">
+                    <button onclick="saveWebhook()">保存</button>
+                    <button onclick="closeWebhookModal()" class="cancel">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        const API_URL = 'proxy.php';
+
+        // 添加密码验证函数
+        function verifyPassword() {
+            const password = document.getElementById('passwordInput').value;
+            const correctPassword = '112233'; // 设置正确的密码
+
+            if (password === correctPassword) {
+                document.getElementById('passwordModal').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                // 存储登录状态
+                sessionStorage.setItem('isAuthenticated', 'true');
+            } else {
+                const input = document.getElementById('passwordInput');
+                input.classList.add('wrong-password');
+                input.value = '';
+                input.placeholder = '密码错误，请重试';
+                setTimeout(() => {
+                    input.classList.remove('wrong-password');
+                    input.placeholder = '请输入密码';
+                }, 1000);
+            }
+        }
+
+        // 添加密码输入框回车事件监听
+        document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                verifyPassword();
+            }
+        });
+
+        // 页面加载时检查登录状态
+        window.onload = function() {
+            const isAuthenticated = sessionStorage.getItem('isAuthenticated');
+            if (isAuthenticated === 'true') {
+                document.getElementById('passwordModal').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+            }
+        };
+
+        // 切换消息输入类型
+        function toggleMessageInput() {
+            const msgType = document.getElementById('msgType').value;
+            const textArea = document.getElementById('message');
+            const imageInput = document.getElementById('imageInput');
+            const imageUrlInput = document.getElementById('imageUrlInput');
+            
+            if (msgType === 'image' || msgType === 'news') {
+                textArea.style.display = 'none';
+                imageInput.style.display = 'block';
+                imageUrlInput.style.display = msgType === 'news' ? 'block' : 'none';
+            } else {
+                textArea.style.display = 'block';
+                imageInput.style.display = 'none';
+                document.getElementById('imageFile').value = '';
+                document.getElementById('fileName').textContent = '';
+                const preview = document.querySelector('.preview-image');
+                if (preview) preview.remove();
+            }
+        }
+
+        // 切换定时发送
+        function toggleScheduleTime() {
+            const sendType = document.querySelector('input[name="sendType"]:checked').value;
+            const scheduleTimeGroup = document.getElementById('scheduleTimeGroup');
+            scheduleTimeGroup.style.display = sendType === 'schedule' ? 'block' : 'none';
+        }
+
+        // 显示状态消息
+        function showStatus(message, isError = false) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.style.display = 'block';
+            status.className = `status ${isError ? 'error' : 'success'}`;
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 5000);
+        }
+
+        // 验证输入
+        function validateInput(msgType) {
+            if (msgType === 'image' || msgType === 'news') {
+                const fileInput = document.getElementById('imageFile');
+                if (!fileInput.files || !fileInput.files[0]) {
+                    showStatus('请选择要发送的图片！', true);
+                    return false;
+                }
+                if (msgType === 'news') {
+                    const imageUrl = document.getElementById('imageUrl').value;
+                    if (!imageUrl) {
+                        showStatus('请输入图片跳转的URL地址！', true);
+                        return false;
+                    }
+                }
+            } else {
+                const message = document.getElementById('message').value;
+                if (!message) {
+                    showStatus('请输入消息内容！', true);
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // 立即发送按钮处理
+        function sendNow() {
+            if (!checkAuthentication()) return;
+            const msgType = document.getElementById('msgType').value;
+            if (!validateInput(msgType)) return;
+            
+            if (msgType === 'image' || msgType === 'news') {
+                sendMessage(null, msgType);
+            } else {
+                const message = document.getElementById('message').value;
+                sendMessage(message, msgType);
+            }
+        }
+
+        // 定时发送处理
+        function scheduleMessage() {
+            if (!checkAuthentication()) return;
+            const msgType = document.getElementById('msgType').value;
+            const scheduleTime = new Date(document.getElementById('scheduleTime').value).getTime();
+            const now = new Date().getTime();
+
+            if (scheduleTime <= now) {
+                showStatus('定时时间必须大于当前时间！', true);
+                return;
+            }
+
+            if (!validateInput(msgType)) return;
+
+            const delay = scheduleTime - now;
+            showStatus(`消息将在 ${new Date(scheduleTime).toLocaleString()} 发送`);
+            
+            setTimeout(() => {
+                if (msgType === 'image' || msgType === 'news') {
+                    sendMessage(null, msgType);
+                } else {
+                    const message = document.getElementById('message').value;
+                    sendMessage(message, msgType);
+                }
+            }, delay);
+        }
+
+        // 发送消息
+        function sendMessage(message, msgType) {
+            if (msgType === 'image' || msgType === 'news') {
+                const fileInput = document.getElementById('imageFile');
+                if (!fileInput.files || !fileInput.files[0]) {
+                    showStatus('请选择要发送的图片！', true);
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64Data = e.target.result.split(',')[1];
+                    const binaryData = atob(base64Data);
+                    const md5 = CryptoJS.MD5(CryptoJS.enc.Latin1.parse(binaryData)).toString();
+
+                    if (msgType === 'news') {
+                        uploadImage(base64Data, function(imageUrl) {
+                            if (!imageUrl) {
+                                showStatus('图片上传失败', true);
+                                return;
+                            }
+
+                            const linkUrl = document.getElementById('imageUrl').value;
+                            const imageTitle = document.getElementById('imageTitle').value || '查看详情';
+                            const imageDescription = document.getElementById('imageDescription').value || '';
+
+                            const data = {
+                                msgtype: "news",
+                                news: {
+                                    articles: [
+                                        {
+                                            title: imageTitle,
+                                            description: imageDescription,
+                                            url: linkUrl,
+                                            picurl: imageUrl
+                                        }
+                                    ]
+                                }
+                            };
+                            sendRequest(data);
+                        });
+                    } else {
+                        const data = {
+                            msgtype: 'image',
+                            image: {
+                                base64: base64Data,
+                                md5: md5
+                            }
+                        };
+                        sendRequest(data);
+                    }
+                };
+                reader.readAsDataURL(file);
+            } else {
+                const data = {
+                    msgtype: msgType,
+                    [msgType]: {
+                        content: message
+                    }
+                };
+                sendRequest(data);
+            }
+        }
+
+        // 发送请求
+        function sendRequest(data) {
+            if (!currentWebhook) {
+                showStatus('请先选择一个机器人！', true);
+                return;
+            }
+
+            const sendNowBtn = document.querySelector('.send-now');
+            const scheduleSendBtn = document.querySelector('.schedule-send');
+            
+            try {
+                sendNowBtn.classList.add('loading');
+                scheduleSendBtn.classList.add('loading');
+
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', `proxy.php?webhook=${encodeURIComponent(currentWebhook)}`, true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        sendNowBtn.classList.remove('loading');
+                        scheduleSendBtn.classList.remove('loading');
+
+                        try {
+                            const result = JSON.parse(xhr.responseText);
+                            if (result.errcode === 0) {
+                                showStatus('消息发送成功！');
+                                // 清空输入
+                                if (data.msgtype === 'image' || data.msgtype === 'news') {
+                                    document.getElementById('imageFile').value = '';
+                                    document.getElementById('fileName').textContent = '';
+                                    if (data.msgtype === 'news') {
+                                        document.getElementById('imageUrl').value = '';
+                                        document.getElementById('imageTitle').value = '';
+                                        document.getElementById('imageDescription').value = '';
+                                    }
+                                    const preview = document.querySelector('.preview-image');
+                                    if (preview) preview.remove();
+                                } else {
+                                    document.getElementById('message').value = '';
+                                }
+                            } else {
+                                showStatus(`消息发送失败：${result.errmsg}`, true);
+                            }
+                        } catch (error) {
+                            showStatus(`发送出错：${xhr.responseText}`, true);
+                        }
+                    }
+                };
+
+                xhr.onerror = function() {
+                    sendNowBtn.classList.remove('loading');
+                    scheduleSendBtn.classList.remove('loading');
+                    showStatus('网络错误，请检查服务器连接', true);
+                };
+
+                xhr.send(JSON.stringify(data));
+            } catch (error) {
+                sendNowBtn.classList.remove('loading');
+                scheduleSendBtn.classList.remove('loading');
+                showStatus(`发送出错：${error.message}`, true);
+            }
+        }
+
+        // 图片上传函数
+        function uploadImage(base64Data, callback) {
+            const formData = new FormData();
+            formData.append('image', base64Data);
+            formData.append('type', 'base64');
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', 'upload.php', true);
+            
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success && response.url) {
+                            callback(response.url);
+                        } else {
+                            showStatus('图片上传失败：' + (response.message || '未知错误'), true);
+                            callback(null);
+                        }
+                    } catch (error) {
+                        showStatus('图片上传失败：' + error.message, true);
+                        callback(null);
+                    }
+                }
+            };
+
+            xhr.onerror = function() {
+                showStatus('图片上传失败：网络错误', true);
+                callback(null);
+            };
+
+            xhr.send(formData);
+        }
+
+        // 文件选择监听
+        document.getElementById('imageFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+                    showStatus('只支持 JPG 和 PNG 格式的图片！', true);
+                    this.value = '';
+                    document.getElementById('fileName').textContent = '';
+                    return;
+                }
+
+                if (file.size > 2 * 1024 * 1024) {
+                    showStatus('图片大小不能超过2MB', true);
+                    this.value = '';
+                    document.getElementById('fileName').textContent = '';
+                    return;
+                }
+
+                document.getElementById('fileName').textContent = file.name;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    let preview = document.querySelector('.preview-image');
+                    if (!preview) {
+                        preview = document.createElement('img');
+                        preview.className = 'preview-image';
+                        document.getElementById('imageInput').appendChild(preview);
+                    }
+                    preview.src = e.target.result;
+                };
+
+                reader.onerror = function(error) {
+                    showStatus('图片预览失败：' + error, true);
+                };
+
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 设置默认的定时时间
+        const defaultTime = new Date(Date.now() + 5 * 60000);
+        document.getElementById('scheduleTime').value = defaultTime.toISOString().slice(0, 16);
+
+        function checkAuthentication() {
+            const isAuthenticated = sessionStorage.getItem('isAuthenticated');
+            if (isAuthenticated !== 'true') {
+                document.getElementById('passwordModal').style.display = 'flex';
+                document.getElementById('mainContent').style.display = 'none';
+                return false;
+            }
+            return true;
+        }
+
+        let currentWebhook = null;
+
+        function loadWebhooks() {
+            const webhooks = JSON.parse(localStorage.getItem('webhooks') || '[]');
+            const select = document.getElementById('webhookSelect');
+            select.innerHTML = '<option value="">请选择机器人...</option>';
+            
+            webhooks.forEach(webhook => {
+                const option = document.createElement('option');
+                option.value = webhook.url;
+                option.textContent = webhook.name;
+                select.appendChild(option);
+            });
+
+            const lastSelected = localStorage.getItem('lastSelectedWebhook');
+            if (lastSelected) {
+                select.value = lastSelected;
+                currentWebhook = lastSelected;
+            }
+        }
+
+        function updateWebhook() {
+            const url = document.getElementById('webhookSelect').value;
+            if (url) {
+                currentWebhook = url;
+                showStatus('已切换到新的机器人');
+            } else {
+                currentWebhook = null;
+                showStatus('请选择一个机器人', true);
+            }
+        }
+
+        function showWebhookModal() {
+            document.getElementById('webhookModal').style.display = 'flex';
+        }
+
+        function closeWebhookModal() {
+            document.getElementById('webhookModal').style.display = 'none';
+        }
+
+        function saveWebhook() {
+            const name = document.getElementById('webhookName').value.trim();
+            const url = document.getElementById('webhookUrl').value.trim();
+
+            if (!name || !url) {
+                showStatus('请填写完整的机器人信息！', true);
+                return;
+            }
+
+            const webhooks = JSON.parse(localStorage.getItem('webhooks') || '[]');
+            webhooks.push({ name, url });
+            localStorage.setItem('webhooks', JSON.stringify(webhooks));
+
+            loadWebhooks();
+            closeWebhookModal();
+            
+            const select = document.getElementById('webhookSelect');
+            select.value = url;
+            currentWebhook = url;
+            localStorage.setItem('lastSelectedWebhook', url);
+            
+            showStatus('机器人添加成功！');
+        }
+
+        // 确保在页面加载时初始化
+        window.addEventListener('load', function() {
+            loadWebhooks();
+        });
+    </script>
+</body>
+</html> 
